@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gourmet Map - Location Based Restaurant Recommendations</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <!-- Leaflet Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css?v=2.8">
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Translate Script Setup -->
+    <script type="text/javascript">
+        function googleTranslateElementInit() {
+            new google.translate.TranslateElement({
+                pageLanguage: 'en',
+                includedLanguages: 'en,ta,hi,te,kn,ml',
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+            }, 'google_translate_element');
+        }
+    </script>
+    <script type="text/javascript"
+        src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar Options -->
+        <aside class="sidebar">
+            <div class="logo-container">
+                <i class="fa-solid fa-utensils"></i>
+                <h1>Gourmet Map</h1>
+            </div>
+
+            <div class="translate-container">
+                <!-- Dropdown for Google Translate will render here -->
+                <div id="google_translate_element"></div>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" id="nav-search"><i class="fa-solid fa-magnifying-glass"></i>
+                    Search</a>
+                <a href="#" class="nav-item" id="nav-history"><i class="fa-solid fa-clock-rotate-left"></i> History</a>
+                <a href="#" class="nav-item" id="nav-map"><i class="fa-solid fa-map-location-dot"></i> Large Map</a>
+            </nav>
+
+            <div class="filters-section">
+                <h3>Filters</h3>
+
+                <div class="filter-group">
+                    <label>Dietary</label>
+                    <div class="toggle-container">
+                        <input type="checkbox" id="veg-toggle" class="toggle-checkbox">
+                        <label for="veg-toggle" class="toggle-label"></label>
+                        <span>Veg Only</span>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label for="cuisine-filter">Cuisine Keywords</label>
+                    <input type="text" id="cuisine-filter" placeholder="e.g. Italian, Chinese">
+                </div>
+
+                <div class="filter-group">
+                    <label for="price-filter">Max Price (Cost for 2)</label>
+                    <input type="range" id="price-filter" min="0" max="5000" step="100" value="5000">
+                    <div class="range-value"><span id="price-value">5000</span></div>
+                </div>
+
+                <div class="filter-group">
+                    <label for="rating-filter">Minimum Rating</label>
+                    <input type="range" id="rating-filter" min="0" max="5" step="0.1" value="0">
+                    <div class="range-value"><span id="rating-value">0.0</span> <i class="fa-solid fa-star"
+                            style="color:var(--accent); font-size: 0.8rem;"></i></div>
+                </div>
+
+                <button class="btn btn-primary btn-full" id="apply-filters-btn">Apply Filters</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Decorative Background blob -->
+            <div class="bg-blob blob-1"></div>
+            <div class="bg-blob blob-2"></div>
+
+            <!-- Search Header -->
+            <header class="search-header">
+                <div class="location-inputs">
+                    <select id="country-select">
+                        <option value="">Select Country</option>
+                        <!-- Loaded dynamically -->
+                    </select>
+
+                    <select id="city-select" disabled>
+                        <option value="">Select City</option>
+                    </select>
+
+                    <select id="locality-select" disabled>
+                        <option value="">Select Locality</option>
+                    </select>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" id="search-btn"><i class="fa-solid fa-magnifying-glass"></i>
+                        Search</button>
+                    <button class="btn btn-tertiary" id="gps-btn" title="Use My Location"><i
+                            class="fa-solid fa-location-crosshairs"></i> Use GPS</button>
+                </div>
+            </header>
+
+            <!-- Results View -->
+            <section class="results-view view-section active" id="view-search">
+                <div class="results-header">
+                    <h2><i class="fa-solid fa-fire" style="color: var(--accent); margin-right: 0.5rem;"></i> Discover
+                        Restaurants</h2>
+                    <p class="results-meta" id="results-meta-text">Showing popular places. Use Search or GPS to see
+                        nearby.</p>
+                </div>
+
+                <div class="restaurant-grid" id="restaurant-grid">
+                    <!-- Cards injected via JS -->
+                    <div class="loading-spinner" id="main-loader" style="display: none;">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i>
+                    </div>
+                </div>
+
+                <div class="load-more-container">
+                    <button class="btn btn-outline" id="load-more-btn" style="display: none;">Load More</button>
+                </div>
+            </section>
+
+            <!-- History View -->
+            <section class="history-view view-section" id="view-history">
+                <div class="results-header">
+                    <h2><i class="fa-solid fa-clock-rotate-left"
+                            style="color: var(--primary); margin-right: 0.5rem;"></i> Your History</h2>
+                    <p>Restaurants you've viewed recently</p>
+                </div>
+                <div class="restaurant-grid" id="history-grid">
+                    <!-- History cards injected here -->
+                </div>
+            </section>
+            </section>
+        </main>
+
+        <!-- Right Panel Container (Map) -->
+        <aside class="right-panel">
+            <div id="map-container" class="map-container"></div>
+            <div class="map-overlay">
+                <div class="map-info">
+                    <h4>Map View</h4>
+                    <p>Pins show currently loaded restaurants.</p>
+                </div>
+                <div id="routing-info" style="display:none; margin-top: 10px; font-size: 0.85rem;">
+                    <button id="show-directions-btn" class="btn btn-primary btn-full"><i class="fa-solid fa-route"></i>
+                        Show Directions</button>
+                    <div id="routing-stats" style="margin-top:10px; font-weight: 500;"></div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Leaflet Routing Machine JS -->
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+    <!-- Custom APP JS -->
+    <script src="app.js?v=2.10"></script>
+</body>
+
+</html>
